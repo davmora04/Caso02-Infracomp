@@ -15,10 +15,9 @@ public class SimuladorNRU {
     private long misses = 0;
     private long totalReferencias = 0;
     
-    // Parametros
-    private int numMarcos;
-    private int pageSize;
-    private int numPaginas;
+    // Parámetros
+    private int pageSize;    // Tamaño de página (leído del archivo de referencias)
+    private int numPaginas;  // Número de páginas virtuales
     
     // Para sincronizar el acceso a tablaPaginas y marcos
     private final Object lock = new Object();
@@ -30,14 +29,17 @@ public class SimuladorNRU {
     private List<Referencia> referencias = new ArrayList<>();
     
     public void simular(String archivoReferencias, int numMarcos) throws InterruptedException {
-        this.numMarcos = numMarcos;
-        
         // 1) Leer archivo
-        leerArchivoReferencias(archivoReferencias);
+        long expectedNR = leerArchivoReferencias(archivoReferencias);
+        
+        // Verificar si el número de referencias leídas coincide con el valor esperado
+        if (expectedNR != 0 && expectedNR != referencias.size()) {
+            System.out.println("Warning: Se esperaba NR=" + expectedNR + " pero se leyeron " + referencias.size() + " referencias.");
+        }
         
         // Inicializar la tabla de páginas
         tablaPaginas = new PaginaInfo[numPaginas];
-        for(int i=0; i<tablaPaginas.length; i++){
+        for (int i = 0; i < tablaPaginas.length; i++) {
             tablaPaginas[i] = new PaginaInfo();
         }
         
@@ -58,7 +60,7 @@ public class SimuladorNRU {
         
         // Hilo B: limpia bits R cada 1ms
         Thread hiloB = new Thread(() -> {
-            while(!fin) {
+            while (!fin) {
                 try {
                     Thread.sleep(1);
                 } catch (InterruptedException e) {
@@ -84,7 +86,7 @@ public class SimuladorNRU {
     }
     
     /**
-     * Lee el archivo de referencias (texto).
+     * Lee el archivo de referencias (texto) y retorna el valor esperado de NR.
      * Formato esperado (ejemplo):
      *   TP=512
      *   NF=79
@@ -95,70 +97,54 @@ public class SimuladorNRU {
      *   Imagen[0][0].r,0,0,R
      *   ...
      */
-    private void leerArchivoReferencias(String archivo) {
+    private long leerArchivoReferencias(String archivo) {
+        long expectedNR = 0;
         try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
-            
             String linea;
-            long nr = 0;
-            
-            while( (linea = br.readLine()) != null ) {
-                if(linea.startsWith("TP=")) {
+            while ((linea = br.readLine()) != null) {
+                if (linea.startsWith("TP=")) {
                     // Tamaño de página
                     String val = linea.substring(3).trim();
                     pageSize = Integer.parseInt(val);
-                }
-                else if(linea.startsWith("NR=")) {
+                } else if (linea.startsWith("NR=")) {
                     String val = linea.substring(3).trim();
-                    nr = Long.parseLong(val);
-                }
-                else if(linea.startsWith("NP=")) {
+                    expectedNR = Long.parseLong(val);
+                } else if (linea.startsWith("NP=")) {
                     String val = linea.substring(3).trim();
                     numPaginas = Integer.parseInt(val);
                 }
-                // NF=, NC=... no son imprescindibles para la simulación,
-                // pero si quieres los guardas como info adicional
+                // NF=, NC=... se pueden guardar como info adicional si se requiere
                 
                 // Si es una referencia
-                else if( linea.contains(",") && (linea.contains("R") || linea.contains("W")) ) {
+                else if (linea.contains(",") && (linea.contains("R") || linea.contains("W"))) {
                     // Formato ej:
                     // Imagen[0][0].r,0,0,R
                     // Sobel_X[0][0],55,79,R
                     // Rta[5][5].b,102,15,W
                     // ...
-                    
                     String[] partes = linea.split(",");
-                    if(partes.length == 4) {
-                        // partes[0] => "Imagen[0][0].r" (no imprescindible parsear del todo)
-                        // partes[1] => número de página
-                        // partes[2] => offset
-                        // partes[3] => 'R' o 'W'
-                        
+                    if (partes.length == 4) {
                         int page = Integer.parseInt(partes[1]);
                         int off = Integer.parseInt(partes[2]);
                         boolean isWrite = partes[3].equals("W");
-                        
                         Referencia ref = new Referencia(page, off, isWrite);
                         referencias.add(ref);
                     }
                 }
             }
-            
-            // En total, deberíamos tener nr referencias leídas (o muy cerca, en caso de configuraciones).
-            // No es estricto validarlo, pero se podría verificar.
-            // System.out.println("Leidas " + referencias.size() + " referencias. (NR=" + nr + ")");
-            
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return expectedNR;
     }
     
     private void procesarReferencias() throws InterruptedException {
         long count = 0;
-        for(Referencia r : referencias) {
+        for (Referencia r : referencias) {
             acceder(r);
             count++;
             
-            if(count % 10000 == 0) {
+            if (count % 10000 == 0) {
                 // Simulamos que este hilo corre cada ~1ms
                 Thread.sleep(1);
             }
@@ -166,17 +152,17 @@ public class SimuladorNRU {
     }
     
     private void acceder(Referencia r) {
-        synchronized(lock) {
+        synchronized (lock) {
             totalReferencias++;
             // Marcar bit R=1
             PaginaInfo p = tablaPaginas[r.pageNumber];
             p.bitR = 1;
-            if(r.isWrite) {
+            if (r.isWrite) {
                 p.bitM = 1;
             }
             
             // Chequear si la página ya está en RAM
-            if(estaEnMarcos(r.pageNumber)) {
+            if (estaEnMarcos(r.pageNumber)) {
                 hits++;
             } else {
                 misses++;
@@ -186,8 +172,8 @@ public class SimuladorNRU {
     }
     
     private boolean estaEnMarcos(int pageNumber) {
-        for(int i=0; i<marcos.length; i++){
-            if(marcos[i] == pageNumber){
+        for (int i = 0; i < marcos.length; i++) {
+            if (marcos[i] == pageNumber) {
                 return true;
             }
         }
@@ -195,14 +181,14 @@ public class SimuladorNRU {
     }
     
     private void manejarFalla(int pageNumber) {
-        // 1) buscar marco libre
-        for(int i=0; i<marcos.length; i++){
-            if(marcos[i] == -1) {
+        // 1) Buscar marco libre
+        for (int i = 0; i < marcos.length; i++) {
+            if (marcos[i] == -1) {
                 marcos[i] = pageNumber;
                 return;
             }
         }
-        // 2) si no hay libre => reemplazar con NRU
+        // 2) Si no hay libre => reemplazar con NRU
         reemplazarNRU(pageNumber);
     }
     
@@ -210,11 +196,11 @@ public class SimuladorNRU {
         int victimaIndex = -1;
         int mejorClase = 4; // mayor que 3 (clase 0..3)
         
-        for(int i=0; i<marcos.length; i++){
+        for (int i = 0; i < marcos.length; i++) {
             int pag = marcos[i];
             PaginaInfo info = tablaPaginas[pag];
             int clase = calcularClase(info.bitR, info.bitM);
-            if(clase < mejorClase) {
+            if (clase < mejorClase) {
                 mejorClase = clase;
                 victimaIndex = i;
             }
@@ -222,22 +208,13 @@ public class SimuladorNRU {
         
         // Reemplazo
         marcos[victimaIndex] = newPage;
-        
-        // Si se requiere limpiar bitR/bitM de la página que sale, se hace:
-        // tablaPaginas[ pageVictima ].bitR = 0;
-        // tablaPaginas[ pageVictima ].bitM = 0;
-        // aunque en NRU usualmente se hace cuando la página sea “swap out”.
-        // Aquí lo básico es “la sacamos y listo”.
     }
     
     private int calcularClase(int r, int m) {
-        // R=0,M=0 => 0
-        // R=0,M=1 => 1
-        // R=1,M=0 => 2
-        // R=1,M=1 => 3
-        if(r==0 && m==0) return 0;
-        if(r==0 && m==1) return 1;
-        if(r==1 && m==0) return 2;
+        // R=0,M=0 => 0, R=0,M=1 => 1, R=1,M=0 => 2, R=1,M=1 => 3
+        if (r == 0 && m == 0) return 0;
+        if (r == 0 && m == 1) return 1;
+        if (r == 1 && m == 0) return 2;
         return 3;
     }
     
@@ -245,8 +222,8 @@ public class SimuladorNRU {
      * Cada 1ms el hilo B pone bitR=0 en todas las páginas (simulando la limpieza).
      */
     private void limpiarBitsR() {
-        synchronized(lock) {
-            for(PaginaInfo p : tablaPaginas) {
+        synchronized (lock) {
+            for (PaginaInfo p : tablaPaginas) {
                 p.bitR = 0;
             }
         }
@@ -263,14 +240,17 @@ public class SimuladorNRU {
         
         // Calcular tiempo en base a 50 ns para hits, 10 ms para misses
         // 10 ms => 10_000_000 ns
-        long tiempoNs = hits*50 + misses*10_000_000;
+        long tiempoNs = hits * 50 + misses * 10_000_000;
         System.out.println("Tiempo total estimado (ns): " + tiempoNs);
         
-        // (Opcional) Tiempos hipotéticos:
+        // Tiempos hipotéticos:
         long tiempoAllHit  = totalReferencias * 50;
         long tiempoAllMiss = totalReferencias * 10_000_000L;
         System.out.println("Tiempo si todo Hit (ns):  " + tiempoAllHit);
         System.out.println("Tiempo si todo Miss (ns): " + tiempoAllMiss);
+        
+        // Reportar parámetros usados
+        System.out.println("Tamaño de página: " + pageSize + " bytes");
+        System.out.println("Número de marcos asignados: " + marcos.length);
     }
-    
 }

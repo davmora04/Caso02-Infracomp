@@ -23,7 +23,7 @@ public class GeneradorReferencias {
         
         // 2) Calcular tamaños en bytes
         long sizeImagenBytes  = (long)alto * ancho * 3;
-        long sizeFiltroXBytes = 9 * 4; // 9 enteros de 4 bytes cada uno
+        long sizeFiltroXBytes = 9 * 4; // 9 enteros de 4 bytes cada uno (conceptualmente)
         long sizeFiltroYBytes = 9 * 4;
         long sizeRtaBytes     = (long)alto * ancho * 3;
         
@@ -59,10 +59,10 @@ public class GeneradorReferencias {
                     }
                 }
                 
-                // (B) 9 lecturas del filtro SOBEL_X (cada int se lee en 4 accesos)
+                // (B) 9 lecturas del filtro SOBEL_X (cada int se lee en 3 accesos)
                 for (int f = 0; f < 9; f++) {
-                    for (int b = 0; b < 4; b++) {
-                        long dirVirtual = baseFiltroX + f * 4 + b;
+                    for (int b = 0; b < 3; b++) {
+                        long dirVirtual = baseFiltroX + f * 3 + b;
                         long pag = dirVirtual / pageSize;
                         long off = dirVirtual % pageSize;
                         referenciasList.add("SOBEL_X[" + f + "]," + pag + "," + off + ",R");
@@ -70,10 +70,10 @@ public class GeneradorReferencias {
                     }
                 }
                 
-                // (C) 9 lecturas del filtro SOBEL_Y (cada int se lee en 4 accesos)
+                // (C) 9 lecturas del filtro SOBEL_Y (cada int se lee en 3 accesos)
                 for (int f = 0; f < 9; f++) {
-                    for (int b = 0; b < 4; b++) {
-                        long dirVirtual = baseFiltroY + f * 4 + b;
+                    for (int b = 0; b < 3; b++) {
+                        long dirVirtual = baseFiltroY + f * 3 + b;
                         long pag = dirVirtual / pageSize;
                         long off = dirVirtual % pageSize;
                         referenciasList.add("SOBEL_Y[" + f + "]," + pag + "," + off + ",R");
