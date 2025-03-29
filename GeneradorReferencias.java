@@ -16,8 +16,11 @@ public class GeneradorReferencias {
      *   (Lista de referencias)
      */
     public void generarArchivoReferencias(String nombreImagen, int pageSize, String archivoSalida) {
+        // Se asume que las imágenes se encuentran en el directorio "caso2-Anexos/"
+        String rutaImagen = "caso2-Anexos/" + nombreImagen;
+        
         // 1) Cargar la imagen
-        Imagen img = new Imagen(nombreImagen);
+        Imagen img = new Imagen(rutaImagen);
         int alto = img.alto;
         int ancho = img.ancho;
         

@@ -20,7 +20,7 @@ public class MainCaso2 {
                     int pageSize = sc.nextInt();
                     sc.nextLine();
                     
-                    System.out.print("Ingrese nombre del archivo BMP (ej: parrotspeq.bmp): ");
+                    System.out.print("Ingrese nombre del archivo BMP (ej: caso2-parrotspeq.bmp): ");
                     String bmp = sc.nextLine();
                     
                     System.out.print("Ingrese nombre para el archivo de salida de referencias: ");
