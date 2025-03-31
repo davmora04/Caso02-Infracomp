@@ -25,7 +25,7 @@ public class GeneradorReferencias {
      */
     public void generarArchivoReferencias(String nombreImagen, int pageSize, String archivoSalida) {
         // Construir la ruta del archivo BMP
-        String rutaImagen = "./" + nombreImagen;
+        String rutaImagen = "Caso02-Infracomp\\caso2-Anexos\\" + nombreImagen;
         
         // 1) Cargar la imagen de entrada y crear la imagen de salida (para conservar cabecera)
         Imagen imgIn = new Imagen(rutaImagen);
