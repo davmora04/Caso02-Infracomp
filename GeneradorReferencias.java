@@ -137,7 +137,7 @@ public class GeneradorReferencias {
         }
         
         // 8) Guardar la imagen de salida filtrada
-        imgOut.escribirImagen("caso2-parrotspeq_sal.bmp");
+        imgOut.escribirImagen("Imagen-Salida.bmp");
     }
     
     /**

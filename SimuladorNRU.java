@@ -97,46 +97,74 @@ public class SimuladorNRU {
      *   Imagen[0][0].r,0,0,R
      *   ...
      */
-    private long leerArchivoReferencias(String archivo) {
-        long expectedNR = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
-            String linea;
-            while ((linea = br.readLine()) != null) {
-                if (linea.startsWith("TP=")) {
-                    // Tamaño de página
-                    String val = linea.substring(3).trim();
-                    pageSize = Integer.parseInt(val);
-                } else if (linea.startsWith("NR=")) {
-                    String val = linea.substring(3).trim();
-                    expectedNR = Long.parseLong(val);
-                } else if (linea.startsWith("NP=")) {
-                    String val = linea.substring(3).trim();
-                    numPaginas = Integer.parseInt(val);
-                }
-                // NF=, NC=... se pueden guardar como info adicional si se requiere
-                
-                // Si es una referencia
-                else if (linea.contains(",") && (linea.contains("R") || linea.contains("W"))) {
-                    // Formato ej:
-                    // Imagen[0][0].r,0,0,R
-                    // Sobel_X[0][0],55,79,R
-                    // Rta[5][5].b,102,15,W
-                    // ...
-                    String[] partes = linea.split(",");
-                    if (partes.length == 4) {
-                        int page = Integer.parseInt(partes[1]);
-                        int off = Integer.parseInt(partes[2]);
-                        boolean isWrite = partes[3].equals("W");
-                        Referencia ref = new Referencia(page, off, isWrite);
-                        referencias.add(ref);
-                    }
-                }
+private long leerArchivoReferencias(String archivo) {
+    long expectedNR = 0;
+    try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+        String linea;
+        while ((linea = br.readLine()) != null) {
+            linea = linea.trim();
+            if (linea.isEmpty()) {
+                continue; // Saltar líneas vacías
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+            if (linea.startsWith("TP=")) {
+                // Tamaño de página
+                String val = linea.substring(3).trim();
+                pageSize = Integer.parseInt(val);
+            } else if (linea.startsWith("NF=")) {
+                // NF=, número de filas (opcional, se puede almacenar si es necesario)
+            } else if (linea.startsWith("NC=")) {
+                // NC=, número de columnas (opcional)
+            } else if (linea.startsWith("NR=")) {
+                String val = linea.substring(3).trim();
+                expectedNR = Long.parseLong(val);
+            } else if (linea.startsWith("NP=")) {
+                String val = linea.substring(3).trim();
+                numPaginas = Integer.parseInt(val);
+            }
+            // Procesar líneas de referencias
+            else if (linea.contains(",")) {
+                // Validar que la línea tenga exactamente 3 comas (4 partes)
+                int commaCount = linea.length() - linea.replace(",", "").length();
+                if (commaCount != 3) {
+                    System.out.println("Formato inválido (número de campos incorrecto) en la línea: " + linea);
+                    continue;
+                }
+                String[] partes = linea.split(",");
+                if (partes.length != 4) {
+                    System.out.println("Formato inválido (no se obtuvieron 4 partes) en la línea: " + linea);
+                    continue;
+                }
+                // Validar que la primera parte no esté vacía
+                if (partes[0].trim().isEmpty()) {
+                    System.out.println("Referencia vacía en la línea: " + linea);
+                    continue;
+                }
+                // Validar que las partes 2 y 3 sean enteros
+                int page, off;
+                try {
+                    page = Integer.parseInt(partes[1].trim());
+                    off = Integer.parseInt(partes[2].trim());
+                } catch (NumberFormatException nfe) {
+                    System.out.println("Error al parsear números en la línea: " + linea);
+                    continue;
+                }
+                // Validar que la cuarta parte sea "R" o "W"
+                String modo = partes[3].trim();
+                if (!modo.equals("R") && !modo.equals("W")) {
+                    System.out.println("Modo inválido (debe ser 'R' o 'W') en la línea: " + linea);
+                    continue;
+                }
+                // Crear la referencia y agregarla a la lista
+                Referencia ref = new Referencia(page, off, modo.equals("W"));
+                referencias.add(ref);
+            }
         }
-        return expectedNR;
+    } catch (IOException e) {
+        e.printStackTrace();
     }
+    return expectedNR;
+}
+
     
     private void procesarReferencias() throws InterruptedException {
         long count = 0;
