@@ -7,8 +7,8 @@ import java.util.List;
 
 public class SimuladorNRU {
     
-    private PaginaInfo[] tablaPaginas;   // Info de cada página virtual
-    private int[] marcos;                // marcos[i] = página que está en marco i, o -1 si vacío
+    private PaginaInfo[] tablaPaginas;   
+    private int[] marcos;                
     
     // Contadores
     private long hits = 0;
@@ -16,20 +16,19 @@ public class SimuladorNRU {
     private long totalReferencias = 0;
     
     // Parámetros
-    private int pageSize;    // Tamaño de página (leído del archivo de referencias)
-    private int numPaginas;  // Número de páginas virtuales
+    private int pageSize;    
+    private int numPaginas;  
     
     // Para sincronizar el acceso a tablaPaginas y marcos
     private final Object lock = new Object();
     
-    // Hilo B se mantiene corriendo hasta que terminemos
+    // Hilo B se mantiene corriendo hasta que se termine
     private volatile boolean fin = false;
     
     // Lista de referencias
     private List<Referencia> referencias = new ArrayList<>();
     
     public void simular(String archivoReferencias, int numMarcos) throws InterruptedException {
-        // 1) Leer archivo
         long expectedNR = leerArchivoReferencias(archivoReferencias);
         
         // Verificar si el número de referencias leídas coincide con el valor esperado
@@ -37,7 +36,7 @@ public class SimuladorNRU {
             System.out.println("Warning: Se esperaba NR=" + expectedNR + " pero se leyeron " + referencias.size() + " referencias.");
         }
         
-        // Inicializar la tabla de páginas
+        // Inicializar  tabla de páginas
         tablaPaginas = new PaginaInfo[numPaginas];
         for (int i = 0; i < tablaPaginas.length; i++) {
             tablaPaginas[i] = new PaginaInfo();
@@ -70,7 +69,7 @@ public class SimuladorNRU {
             }
         });
         
-        // 3) Iniciarlos
+        // 3) Iniciar ambos hilos
         hiloA.start();
         hiloB.start();
         
@@ -81,21 +80,11 @@ public class SimuladorNRU {
         fin = true;
         hiloB.join();
         
-        // 6) Reportar resultados
         reportarResultados();
     }
     
     /**
      * Lee el archivo de referencias (texto) y retorna el valor esperado de NR.
-     * Formato esperado (ejemplo):
-     *   TP=512
-     *   NF=79
-     *   NC=119
-     *   ...
-     *   NR=756756
-     *   NP=111
-     *   Imagen[0][0].r,0,0,R
-     *   ...
      */
 private long leerArchivoReferencias(String archivo) {
     long expectedNR = 0;
@@ -111,9 +100,9 @@ private long leerArchivoReferencias(String archivo) {
                 String val = linea.substring(3).trim();
                 pageSize = Integer.parseInt(val);
             } else if (linea.startsWith("NF=")) {
-                // NF=, número de filas (opcional, se puede almacenar si es necesario)
+                // NF=, número de filas 
             } else if (linea.startsWith("NC=")) {
-                // NC=, número de columnas (opcional)
+                // NC=, número de columnas 
             } else if (linea.startsWith("NR=")) {
                 String val = linea.substring(3).trim();
                 expectedNR = Long.parseLong(val);
@@ -123,7 +112,6 @@ private long leerArchivoReferencias(String archivo) {
             }
             // Procesar líneas de referencias
             else if (linea.contains(",")) {
-                // Validar que la línea tenga exactamente 3 comas (4 partes)
                 int commaCount = linea.length() - linea.replace(",", "").length();
                 if (commaCount != 3) {
                     System.out.println("Formato inválido (número de campos incorrecto) en la línea: " + linea);
@@ -173,7 +161,7 @@ private long leerArchivoReferencias(String archivo) {
             count++;
             
             if (count % 10000 == 0) {
-                // Simulamos que este hilo corre cada ~1ms
+                // Simular que este hilo corre cada ~1ms
                 Thread.sleep(1);
             }
         }
@@ -209,14 +197,12 @@ private long leerArchivoReferencias(String archivo) {
     }
     
     private void manejarFalla(int pageNumber) {
-        // 1) Buscar marco libre
         for (int i = 0; i < marcos.length; i++) {
             if (marcos[i] == -1) {
                 marcos[i] = pageNumber;
                 return;
             }
         }
-        // 2) Si no hay libre => reemplazar con NRU
         reemplazarNRU(pageNumber);
     }
     
@@ -266,12 +252,10 @@ private long leerArchivoReferencias(String archivo) {
         double porcHits = (100.0 * hits) / totalReferencias;
         System.out.printf("Porcentaje de hits: %.2f %%\n", porcHits);
         
-        // Calcular tiempo en base a 50 ns para hits, 10 ms para misses
-        // 10 ms => 10_000_000 ns
         long tiempoNs = hits * 50 + misses * 10_000_000;
         System.out.println("Tiempo total estimado (ns): " + tiempoNs);
         
-        // Tiempos hipotéticos:
+        // Tiempos estimados para todo hit y todo miss:
         long tiempoAllHit  = totalReferencias * 50;
         long tiempoAllMiss = totalReferencias * 10_000_000L;
         System.out.println("Tiempo si todo Hit (ns):  " + tiempoAllHit);

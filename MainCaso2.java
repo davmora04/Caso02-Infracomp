@@ -12,7 +12,7 @@ public class MainCaso2 {
             System.out.print("Seleccione una opcion: ");
             
             int opcion = sc.nextInt();
-            sc.nextLine(); // Consumir salto de línea
+            sc.nextLine(); 
             
             switch(opcion){
                 case 1:

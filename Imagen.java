@@ -54,8 +54,6 @@ public class Imagen {
      * Método para escribir una imagen a un archivo en formato BMP
      * @param output: nombre del archivo donde se almacenará la imagen.
      * Se espera que se invoque para almacenar la imagen modificada.
-     * @pre la matriz imagen debe haber sido inicializada con una imagen
-     * @pos se creó el archivo en formato bmp con la información de la matriz imagen
      */
     public void escribirImagen(String output) {
         byte pad = 0;

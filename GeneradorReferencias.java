@@ -7,7 +7,7 @@ import java.util.List;
 public class GeneradorReferencias {
 
     /**
-     * Genera un archivo de referencias en formato:
+     * Se genera un archivo de referencias en formato:
      * TP=xxx
      * NF=...
      * NC=...
@@ -15,49 +15,43 @@ public class GeneradorReferencias {
      * NP=...
      * (Lista de referencias)
      * 
-     * Se asume que el archivo BMP se encuentra en "caso2-Anexos/".
-     * Este método invoca FiltroSobel.applySobel() para procesar la imagen
-     * y luego simula la generación de las referencias sin utilizar Logger.
-     *
      * @param nombreImagen   Nombre del archivo BMP (ej: caso2-parrotspeq.bmp)
      * @param pageSize       Tamaño de página (en bytes), por ejemplo 512
      * @param archivoSalida  Nombre del archivo de salida (ej: refs512.txt)
      */
     public void generarArchivoReferencias(String nombreImagen, int pageSize, String archivoSalida) {
-        // Construir la ruta del archivo BMP
-        String rutaImagen = "Caso02-Infracomp\\caso2-Anexos\\" + nombreImagen;
+        String rutaImagen = "Caso02-Infracomp\\caso2-Anexos\\" + nombreImagen; //Cambiar en caso de problema
         
-        // 1) Cargar la imagen de entrada y crear la imagen de salida (para conservar cabecera)
         Imagen imgIn = new Imagen(rutaImagen);
         int alto = imgIn.alto;
         int ancho = imgIn.ancho;
         Imagen imgOut = new Imagen(rutaImagen);
         
-        // 2) Invocar FiltroSobel para procesar la imagen (se mantiene sin modificar)
+        // Invocar FiltroSobel para procesar la imagen (se mantiene sin modificar)
         FiltroSobel filtro = new FiltroSobel(imgIn, imgOut);
         filtro.applySobel();
         
-        // 3) Calcular tamaños en bytes de las estructuras
+        // Cálculo de tamaños en bytes de las estructuras
         long sizeImagenBytes  = (long) alto * ancho * 3;   // Imagen de entrada
-        long sizeFiltroXBytes = 9 * 4;                     // 9 enteros para SOBEL_X
-        long sizeFiltroYBytes = 9 * 4;                     // 9 enteros para SOBEL_Y
+        long sizeFiltroXBytes = 9 * 4;                     
+        long sizeFiltroYBytes = 9 * 4;                     
         long sizeRtaBytes     = (long) alto * ancho * 3;    // Imagen de salida
         
-        // 4) Definir las bases virtuales (organizadas de forma contigua)
+        // Definición de las bases virtuales 
         long baseImagen  = 0;
         long baseFiltroX = baseImagen + sizeImagenBytes;
         long baseFiltroY = baseFiltroX + sizeFiltroXBytes;
         long baseRta     = baseFiltroY + sizeFiltroYBytes;
         
-        // 5) Calcular el número total de páginas virtuales
+        // Cálculo el número total de páginas virtuales
         long totalBytes = baseRta + sizeRtaBytes;
         long numPaginas = (long) Math.ceil((double) totalBytes / pageSize);
         
-        // 6) Generar la lista de referencias (simulación de accesos a memoria)
+        // Generación de lista de referencias (simulación de accesos a memoria)
         long contadorReferencias = 0;
         List<String> referenciasList = new ArrayList<>();
         
-        // Arreglo de offsets para la ventana 3x3 (vecinos del píxel central)
+        // Arreglo de offsets (desplazamientos relativos) para la ventana 3x3 
         int[][] offsets = {
             {-1, -1}, {-1, 0}, {-1, 1},
             { 0, -1}, { 0, 0}, { 0, 1},
@@ -74,18 +68,17 @@ public class GeneradorReferencias {
                     int ni = i + di;
                     int nj = j + dj;
                     
-                    // Registrar accesos de lectura a la imagen de entrada (3 componentes)
+                    // Registro de accesos de lectura a la imagen de entrada 
                     for (int comp = 0; comp < 3; comp++) {
                         long dirVirtual = baseImagen + offsetImagen(alto, ancho, ni, nj, comp);
                         long pag = dirVirtual / pageSize;
                         long off = dirVirtual % pageSize;
-                        // Se asume que componenteRGB devuelve una cadena, se usa charAt(0)
+                        // Se asume que componenteRGB devuelve una cadena, 
                         referenciasList.add("Imagen[" + ni + "][" + nj + "]." 
                             + componenteRGB(comp).charAt(0) + "," + pag + "," + off + ",R");
                         contadorReferencias++;
                     }
                     
-                    // Convertir (di, dj) a índices del kernel: (di+1, dj+1)
                     int kernelRow = di + 1;  // valores de 0 a 2
                     int kernelCol = dj + 1;  // valores de 0 a 2
                     int index = kernelRow * 3 + kernelCol; // índice de 0 a 8
@@ -122,7 +115,6 @@ public class GeneradorReferencias {
             }
         }
         
-        // 7) Escribir en el archivo de salida el encabezado y la lista de referencias
         try (PrintWriter pw = new PrintWriter(new FileWriter(archivoSalida))) {
             pw.println("TP=" + pageSize);
             pw.println("NF=" + alto);
@@ -136,12 +128,12 @@ public class GeneradorReferencias {
             e.printStackTrace();
         }
         
-        // 8) Guardar la imagen de salida filtrada
+        // Imagen de salida filtrada
         imgOut.escribirImagen("Imagen-Salida.bmp");
     }
     
     /**
-     * Método auxiliar para calcular el offset dentro de la matriz (row-major order).
+     * Método auxiliar para calcular el desplazamiento dentro de la matriz.
      * Cada píxel ocupa 3 bytes (r, g, b).
      * Se asume:
      *   comp = 0 -> r, 1 -> g, 2 -> b.
